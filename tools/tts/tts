@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Local human-like TTS (offline) using Piper
+# Usage:
+#   tts "Hello"                # writes ./tts_<timestamp>.wav
+#   tts "Hello" out.ogg        # writes out.ogg (WhatsApp-friendly)
+#   echo "Hello" | tts - out.wav
+
+PIPER_DIR="/home/ubuntu/clawd/tts/piper/piper"
+MODEL_DIR="/home/ubuntu/clawd/tts/voices/en_US-lessac-medium"
+MODEL="$MODEL_DIR/model.onnx"
+CONFIG="$MODEL_DIR/model.onnx.json"
+ESPEAK_DATA="$PIPER_DIR/espeak-ng-data"
+PIPER_BIN="$PIPER_DIR/piper"
+
+if [[ ! -x "$PIPER_BIN" ]]; then
+  echo "piper not found at $PIPER_BIN" >&2
+  exit 1
+fi
+
+TEXT=""
+OUT=""
+
+if [[ "${1:-}" == "-" ]]; then
+  TEXT=$(cat)
+  shift || true
+else
+  TEXT="${1:-}"
+  shift || true
+fi
+
+if [[ -z "$TEXT" ]]; then
+  echo "Usage: tts \"text\" [out.wav|out.ogg]" >&2
+  exit 2
+fi
+
+OUT="${1:-tts_$(date +%Y%m%d_%H%M%S).ogg}"
+TMP_WAV=$(mktemp --suffix=.wav)
+
+# Generate WAV
+printf "%s" "$TEXT" | "$PIPER_BIN" -m "$MODEL" -c "$CONFIG" --espeak_data "$ESPEAK_DATA" -f "$TMP_WAV" -q
+
+# Convert to requested format
+case "$OUT" in
+  *.wav)
+    mv "$TMP_WAV" "$OUT"
+    ;;
+  *.ogg)
+    ffmpeg -y -hide_banner -loglevel error -i "$TMP_WAV" -c:a libopus -b:a 24k "$OUT"
+    rm -f "$TMP_WAV"
+    ;;
+  *.mp3)
+    ffmpeg -y -hide_banner -loglevel error -i "$TMP_WAV" -c:a libmp3lame -q:a 4 "$OUT"
+    rm -f "$TMP_WAV"
+    ;;
+  *)
+    # default: ogg
+    ffmpeg -y -hide_banner -loglevel error -i "$TMP_WAV" -c:a libopus -b:a 24k "$OUT.ogg"
+    rm -f "$TMP_WAV"
+    OUT="$OUT.ogg"
+    ;;
+esac
+
+echo "$OUT"

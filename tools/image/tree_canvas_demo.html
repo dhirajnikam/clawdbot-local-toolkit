@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dot/Pixels Tree Demo</title>
+  <style>
+    body{font-family:system-ui,Arial;margin:24px}
+    .row{display:flex;gap:24px;flex-wrap:wrap}
+    .card{border:1px solid #ddd;border-radius:12px;padding:12px}
+    canvas{image-rendering:pixelated; border:1px solid #111}
+  </style>
+</head>
+<body>
+  <h3>Tree (dot/pixel) demo</h3>
+  <p>These are generated pixels painted onto a canvas. Change <code>scale</code> to make dots bigger.</p>
+
+  <div class="row">
+    <div class="card">
+      <div><b>Square</b> (64×64)</div>
+      <canvas id="c1" width="64" height="64"></canvas>
+    </div>
+    <div class="card">
+      <div><b>Portrait</b> (64×96)</div>
+      <canvas id="c2" width="64" height="96"></canvas>
+    </div>
+  </div>
+
+<script>
+// Pixels are encoded as [r,g,b] triples in a flat array (row-major)
+// To keep this HTML small, we draw from the PNGs by loading them.
+// Next step: embed raw per-pixel arrays or run-length encoded pixels.
+
+async function paintFromPng(canvasId, pngUrl, scale=6){
+  const c = document.getElementById(canvasId);
+  const ctx = c.getContext('2d');
+
+  // Draw into an offscreen canvas at native res
+  const img = new Image();
+  img.src = pngUrl;
+  await img.decode();
+
+  const off = document.createElement('canvas');
+  off.width = img.width; off.height = img.height;
+  const octx = off.getContext('2d');
+  octx.drawImage(img,0,0);
+  const data = octx.getImageData(0,0,off.width,off.height).data;
+
+  // Resize visible canvas
+  c.style.width = (off.width*scale) + 'px';
+  c.style.height = (off.height*scale) + 'px';
+
+  // Paint “dots” (squares)
+  ctx.clearRect(0,0,off.width,off.height);
+  for(let y=0;y<off.height;y++){
+    for(let x=0;x<off.width;x++){
+      const i=(y*off.width + x)*4;
+      ctx.fillStyle = `rgb(${data[i]},${data[i+1]},${data[i+2]})`;
+      ctx.fillRect(x,y,1,1);
+    }
+  }
+}
+
+paintFromPng('c1','tree_square_64.png');
+paintFromPng('c2','tree_portrait_64x96.png');
+</script>
+</body>
+</html>

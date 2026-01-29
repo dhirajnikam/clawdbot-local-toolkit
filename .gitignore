@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Outputs
+out/
+output/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.ogg
+*.wav
+*.mp3
+
+# Secrets
+.env
+
+# OS
+.DS_Store
