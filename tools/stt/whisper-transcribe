@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# whisper-transcribe
+# Offline transcription helper for Clawdbot voice notes.
+#
+# Usage:
+#   whisper-transcribe <audio-file>
+#
+# Env:
+#   WHISPER_CPP_MODEL=/path/to/ggml-*.bin (default: /opt/whisper-cpp/ggml-tiny.bin)
+
+IN="${1:-}"
+if [[ -z "$IN" ]]; then
+  echo "usage: whisper-transcribe <audio-file>" >&2
+  exit 2
+fi
+
+MODEL="${WHISPER_CPP_MODEL:-/opt/whisper-cpp/ggml-tiny.bin}"
+if [[ ! -f "$MODEL" ]]; then
+  echo "missing model at $MODEL" >&2
+  exit 2
+fi
+
+command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg is required" >&2; exit 2; }
+command -v whisper-cli >/dev/null 2>&1 || { echo "whisper-cli (whisper.cpp) is required" >&2; exit 2; }
+
+TMPDIR="$(mktemp -d)"
+trap 'rm -rf "$TMPDIR"' EXIT
+
+WAV="$TMPDIR/in.wav"
+OUTBASE="$TMPDIR/out"
+
+# Convert to 16k mono wav (fast + consistent)
+ffmpeg -hide_banner -loglevel error -y -i "$IN" -ar 16000 -ac 1 "$WAV"
+
+# Transcribe. Print only text (no timestamps), write .txt, then cat it.
+whisper-cli -m "$MODEL" -f "$WAV" --no-timestamps -otxt -of "$OUTBASE" -np 1>/dev/null
+cat "$OUTBASE".txt

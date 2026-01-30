@@ -11,6 +11,11 @@ This repo intentionally **does not include** any broker integrations (e.g., Ange
 - **Output:** WhatsApp-friendly `ogg/opus` (or WAV/MP3)
 - Script: `tools/tts/tts`
 
+### 1b) Offline voice-to-text (STT) for WhatsApp voice notes
+- **Engine:** whisper.cpp (offline)
+- Wrapper script: `tools/stt/whisper-transcribe`
+- Model: recommended **tiny** (~75MB) for lightweight setup
+
 ### 2) PDF generation (proposals/quotes)
 - **Engine:** ReportLab (Python)
 - Script: `tools/pdf/proposal_generator.py`
@@ -43,6 +48,61 @@ pip3 install --user pillow reportlab
 ---
 
 ## 1) TTS setup (Piper)
+
+## 1b) STT setup (whisper.cpp)
+
+### Install whisper.cpp + whisper-cli
+```bash
+sudo apt-get update -y
+sudo apt-get install -y git build-essential cmake ffmpeg
+
+cd /tmp
+git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git
+cd whisper.cpp
+make build
+sudo install -m 0755 ./build/bin/whisper-cli /usr/local/bin/whisper-cli
+```
+
+### Download a lightweight model (tiny)
+```bash
+cd /tmp/whisper.cpp
+bash ./models/download-ggml-model.sh tiny
+sudo mkdir -p /opt/whisper-cpp
+sudo cp ./models/ggml-tiny.bin /opt/whisper-cpp/ggml-tiny.bin
+```
+
+### Install the wrapper script
+```bash
+sudo install -m 0755 ./tools/stt/whisper-transcribe /usr/local/bin/whisper-transcribe
+```
+
+### Enable in Clawdbot config
+Add this to your `clawdbot.json`:
+
+```json5
+{
+  tools: {
+    media: {
+      audio: {
+        enabled: true,
+        maxBytes: 15728640,
+        timeoutSeconds: 60,
+        models: [
+          {
+            type: "cli",
+            command: "whisper-transcribe",
+            args: ["{{MediaPath}}"],
+            timeoutSeconds: 60
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Then restart the gateway.
+
 
 ### Install Piper
 ```bash
